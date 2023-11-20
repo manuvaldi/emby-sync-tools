@@ -1,0 +1,9 @@
+.idea
+__pycache__/
+*.py[cod]
+*.json
+*.DS_STORE
+.vscode
+*.json
+*.log
+venv
