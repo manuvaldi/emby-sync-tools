@@ -73,20 +73,6 @@ def emby_get_item(api,id):
     data_json = {   "api_key": api["token"] }
 
     result = requests.get(url,  params = data_json ).json()
-    # results={}
-    # results["Items"]=[]
-    # startindex = 0
-    # totales = 1
-    # print("   * Limit: " + str(LIMIT))
-    # while (startindex < totales):
-    #     data_json.update({ "StartIndex": startindex, "Limit": LIMIT })
-    #     results_tmp = requests.get(url,  params = data_json ).json()
-    #     results["Items"].extend(results_tmp["Items"])
-    #
-    #     totales = results_tmp["TotalRecordCount"]
-    #     startindex += len(results_tmp["Items"])
-    #
-    #     print("   * Loading " + str(startindex) + '/' + str(totales))
 
     return(result)
 
@@ -106,12 +92,9 @@ def update_item(api, id, type=None, data=None):
         url = "http://%s/emby/Users/%s/FavoriteItems/%s" % (api["server"] , api["userid"], id)
 
     elif type == "Playing":
-        # print(emby_get_item(api, id))
-        # update_item(api,id,"Played,da")
+
         url = "http://%s/emby/Users/%s/PlayingItems/%s" % (api["server"] , api["userid"], id)
-        # data_json = { "PositionTicks" : data, "MediaSourceId": 1, "NextMediaType": "Movie" }
         data_json = { "PositionTicks" : data }
-        # print(data_json)
         results = requests.delete(url, headers=auth_header, params=data_json )
         # print(results.status_code)
         # print(results.url)
@@ -125,71 +108,14 @@ def update_item(api, id, type=None, data=None):
         if results.status_code == 200:
             print("   * Updated Item %s (%s)" % (id,type) )
 
-        # print(results.status_code)
-        # print(results.url)
-        # print(results.text)
 
     return(results)
 
 
 
-# def _to_lower(array):
-#     out = map(lambda x:x.lower(), array)
-#     output = list(out)
-#     return(output)
-
 def printp(jsonobject):
     print(json.dumps(jsonobject, indent=2))
 
-def emby_get_item_by_provider_online(api,item):
-
-        url = "http://%s/emby/Users/%s/Items" % (api["server"] , api["userid"])
-        providers = ""
-        for provtype in item["ProviderIds"]:
-            providers += provtype.lower() + "." + item["ProviderIds"][provtype] + ","
-        providers = providers[:-1]
-        data_json = { "api_key": api["token"],
-                    "AnyProviderIdEquals": providers,
-                    "Recursive": True,
-                    "Fields": "ProviderIds",
-                    "SortBy": "DateCreated,SortName,Type,Id",
-                    "SortOrder": "Ascending",
-                    "IncludeItemTypes": "Movie,Episode,Series",
-                    "EnableUserData": True,
-                    "EnableImages": False }
-        # print(data_json)
-        result = requests.get(url,  params = data_json )
-        # printp(result.json()["Items"])
-        print("RESULTADOS: " + str(len(result.json()["Items"])) )
-        if result.status_code == 200 and len(result.json()["Items"]) > 0:
-            item = result.json()["Items"][0]
-            # printp(item)
-            extendeditem = emby_get_item(api,item['Id'])
-            printp(extendeditem)
-            return(extendeditem)
-        else:
-            # if provtype == "Tmdb":
-            #     data_json = {   "api_key": api["token"], "AnyProviderIdEquals": "tmdb."+item["ProviderIds"]["Tmdb"] }
-            #     print(data_json)
-            #     result = requests.get(url,  params = data_json )
-            #     print(result)
-            #     if result.status_code == 200:
-            #         return(result)
-            # elif provtype == "Imdb":
-            #     data_json = {   "api_key": api["token"], "AnyProviderIdEquals": "imdb."+item["ProviderIds"]["Imdb"] }
-            #     print(data_json)
-            #     result = requests.get(url,  params = data_json )
-            #     print(result)
-            #     if result.status_code == 200:
-            #         return(result)
-            # elif provtype == "Tvdb":
-            #     data_json = {   "api_key": api["token"], , "AnyProviderIdEquals": "tvdb."+item["ProviderIds"]["Tvdb"] }
-            #     print(data_json)
-            #     result = requests.get(url,  params = data_json )
-            #     print(result)
-            #     if result.status_code == 200:
-            #         return(result)
-            return(None)
 
 def item_in_items(item, embyitems):
 
@@ -257,7 +183,7 @@ def sync(src_items, src_api, dest_items, dest_api):
                 destitemdate = 0
 
             if srcitemdate > (destitemdate + 10800):
- 
+
                 print("   * EmbySrc Played: " + srcitem["Name"] + " ["+srcitem['Id']+"] " + " (" + strproviders(srcitem) + ") (" + str(srcitemdate) + ">" + str(destitemdate) + ")" )
                 print("     - Found: " + destitem["Name"] + " ["+destitem['Id']+"] " + " (" + strproviders(destitem) +") watched at " + str(destitemdate))
 
@@ -286,8 +212,6 @@ def logout(api):
 
     auth_header = {'X-Emby-Authorization' : HEADER + ',Token="'+ api["token"] + '"', 'Content-Type': 'application/json' }
     data_json = {}
-    # url = "http://%s/emby/Sessions/%s/Users/%s" % (api["server"] , api["sessionid"], api["userid"])
-    # result = requests.delete(url, headers=auth_header)
     url = "http://%s/emby/Sessions/Logout" % api["server"]
     result = requests.post(url, headers=auth_header)
 
@@ -415,16 +339,7 @@ def sync_plex2emby(plex_watched,plex_favorite,embyitems, api):
             print(" * PlexPlayed: " + plexitem["Name"] + " (" + strproviders(plexitem) +") (Only played state)" )
             print("   - Found: " + embyitem["Name"] + " ["+embyitem['Id']+"] " + " (" + strproviders(embyitem) +") ")
             update_item(api, embyitem["Id"], "Played")
-        # else:
-        #     # print("ticks: " + str(int(plexitem["viewOffset"]*10000)) + "<->" + str(embyitem["UserData"]["PlaybackPositionTicks"]) )
-        #     if int(plexitem["viewOffset"]*10000) >= embyitem["UserData"]["PlaybackPositionTicks"]:
-        #         print("lastviewed: " + str(plexitem["lastViewedAt"]))
-        #         print(" * PlexPlaying: " + plexitem["Name"] + " (" + strproviders(plexitem) +") (" + str(int(plexitem["viewOffset"]*10000)) + "<->" + str(embyitem["UserData"]["PlaybackPositionTicks"]) + ")" )
-        #         print("   - Found: " + embyitem["Name"] + " ["+embyitem['Id']+"] " + " (" + strproviders(embyitem) +") ")
-        #         # print("current ticks: " + str(embyitem["UserData"]["PlaybackPositionTicks"]))
-        #         # print("media source")
-        #         # printp(embyitem["MediaSources"])
-        #         update_item(api, embyitem["Id"], "Playing", int(plexitem["viewOffset"]*10000))
+
 
     print(" ** Syncing Watchlist/Favorite items from Plex to Emby")
     for plexitem in plex_favorite["Items"]:

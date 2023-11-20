@@ -41,5 +41,5 @@ Import watched and favorites from backup file
 
 ```
 python embyimport.py \
- --url server1.example.com:8080 --username userone --password XXXXXXX --backupfile backup.json \
+ --url server1.example.com:8080 --username userone --password XXXXXXX --backupfile backup.json 
 ```
