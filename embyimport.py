@@ -1,5 +1,6 @@
 import json
-
+import sys
+import getopt
 from  embylib import *
 
 ## Main
@@ -32,19 +33,21 @@ def main(argv):
             server_password = arg
 
 
-    # Authentication
-    api = authenticate_token(username=username, password=password, server=server)
-
-    print('User ID : ' + api["userid"])
-    print('  Token : ' + api["token"])
-    print(' Server : ' + api["server"])
-
     # Load json file JSON file
+    print(" * Loading items from Backup " + backupfile)
     f = open(backupfile)
     jsonitems = json.load(f)
     f.close()
 
 
+    # Authentication
+    api = authenticate_token(username=server_username, password=server_password, server=server_url)
+
+    print('User ID : ' + api["userid"])
+    print('  Token : ' + api["token"])
+    print(' Server : ' + api["server"])
+
+    print(" * Getting items from Emby " + api["server"])
     embyitems = get_all_items(api)
 
 
@@ -55,7 +58,7 @@ def main(argv):
             if embyitem is not None and embyitem["UserData"]["Played"] == False:
                 print(" - " + item["Name"])
                 print("   - Found: " + embyitem["Name"] + " (" + embyitem["Id"] +") " + " (" + embyitem["Id"] +")")
-                update_item(api, embyitem["Id"], "Played", item["UserData"]["LastPlayedDate"])
+                update_item(api, embyitem["Id"], "Played")
 
         if item["UserData"]["IsFavorite"] == True:
             embyitem = item_in_items(item, embyitems)

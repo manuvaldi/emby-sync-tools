@@ -10,7 +10,7 @@ List of tools:
 
 ## Sync servers (`embysync.py`)
 
-This tool sync server 1 to server 2. Unidireccional.
+This tool sync server 1 to server 2. Unidirectionally.
 
 ### How to run
 
@@ -41,5 +41,5 @@ Import watched and favorites from backup file
 
 ```
 python embyimport.py \
- --url server1.example.com:8080 --username userone --password XXXXXXX --backupfile backup.json 
+ --url server1.example.com:8080 --username userone --password XXXXXXX --backupfile backup.json
 ```

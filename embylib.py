@@ -24,7 +24,6 @@ def authenticate_token(username=None, password=None, server=None):
 
 
 
-
 def find_by_provider(api, provider):
 
     path = '/Users/' + api["userid"] + '/Items'
