@@ -6,23 +6,26 @@ from  embylib import *
 ## Main
 def main(argv):
     log_file = False
+    https = False
     username = None
     backup_path = ''
 
     try:
         opts, args = getopt.getopt(argv, "hl", ["help", "log",
                                                 "backupfile=",
-                                                "url=", "username=", "password="])
+                                                "url=", "https", "username=", "password="])
     except getopt.GetoptError:
-        print_debug(['embyimport.py --url embyserver:12345 --username useremby --password mypassword --backupfile backupfile'])
+        print_debug(['embyimport.py --url embyserver:12345 --https --username useremby --password mypassword --backupfile backupfile'])
         sys.exit(2)
 
     for opt, arg in opts:
         if opt == '-h':
-            print_debug(['embyimport.py --url embyserver:12345 --username useremby --password mypassword --backupfile backupfile'])
+            print_debug(['embyimport.py --url embyserver:12345 --https --username useremby --password mypassword --backupfile backupfile'])
             sys.exit()
         # elif opt == '-l' or opt == '--log':
         #     log_file = True
+        elif opt == "--https":
+            https = True
         elif opt == '--backupfile':
             backupfile = arg
         elif opt == '--url':
@@ -41,7 +44,7 @@ def main(argv):
 
 
     # Authentication
-    api = authenticate_token(username=server_username, password=server_password, server=server_url)
+    api = authenticate_token(username=server_username, password=server_password, server=server_url, protohttps=https)
 
     print('User ID : ' + api["userid"])
     print('  Token : ' + api["token"])

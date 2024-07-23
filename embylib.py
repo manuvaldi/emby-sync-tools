@@ -3,23 +3,28 @@ import requests
 import json
 from datetime import datetime
 import dateutil.parser as parser
-from plexapi.server import PlexServer
-from plexapi.myplex import MyPlexAccount
+import urllib3
 
-HEADER = 'Emby UserId="", Client="Android", Device="Samsung Galaxy SIII", DeviceId="xxx3", Version="1.0.0.0"'
+urllib3.disable_warnings(category=urllib3.exceptions.InsecureRequestWarning)
+
+HEADER = 'Emby UserId="", Client="Python", Device="Backup Script Manuvaldi", DeviceId="0001", Version="1.0.0.0"'
 LIMIT = 10000
 
-def authenticate_token(username=None, password=None, server=None):
+def authenticate_token(username=None, password=None, server=None, protohttps=False):
 
-    url = 'http://' + server + '/emby/Users/AuthenticateByName'
+    if (protohttps==False):
+        proto = "http://"
+    else:
+        proto = "https://"
+    url = proto + server + '/emby/Users/AuthenticateByName'
     auth_header = {'X-Emby-Authorization' : HEADER, 'Content-Type': 'application/json'}
     auth_json = { "Username": username, "Password": password, "Pw": password }
 
-    auth = requests.post(url, headers = auth_header, json = auth_json )
+    auth = requests.post(url, headers = auth_header, json = auth_json, verify=False )
     # print("Auth Code : " + str(auth.status_code))
     return({ "userid": auth.json()['User']['Id'],
              "token": auth.json()['AccessToken'],
-             "server": server,
+             "server": proto + server,
              "sessionid": auth.json()["SessionInfo"]["Id"] })
 
 
@@ -38,7 +43,7 @@ def find_by_provider(api, provider):
 
 def get_all_items(api):
 
-    url = "http://%s/emby/Users/%s/Items" % (api["server"] , api["userid"])
+    url = "%s/emby/Users/%s/Items" % (api["server"] , api["userid"])
     data_json = {   "api_key": api["token"],
                     "Recursive": True,
                     "Fields": "ProviderIds,ShareLevel",
@@ -56,7 +61,7 @@ def get_all_items(api):
     print("   * Limit: " + str(LIMIT))
     while (startindex < totales):
         data_json.update({ "StartIndex": startindex, "Limit": LIMIT })
-        results_tmp = requests.get(url,  params = data_json ).json()
+        results_tmp = requests.get(url,  params = data_json, verify=False ).json()
         results["Items"].extend(results_tmp["Items"])
 
         totales = results_tmp["TotalRecordCount"]
@@ -68,10 +73,10 @@ def get_all_items(api):
 
 def emby_get_item(api,id):
 
-    url = "http://%s/emby/Users/%s/Items/%s" % (api["server"] , api["userid"], id)
+    url = "%s/emby/Users/%s/Items/%s" % (api["server"] , api["userid"], id)
     data_json = {   "api_key": api["token"] }
 
-    result = requests.get(url,  params = data_json ).json()
+    result = requests.get(url,  params = data_json, verify=False ).json()
 
     return(result)
 
@@ -82,30 +87,38 @@ def update_item(api, id, type=None, data=None):
     data_json = {}
 
     if type == "Played":
-        url = "http://%s/emby/Users/%s/PlayedItems/%s" % (api["server"] , api["userid"], id)
+        url = "%s/emby/Users/%s/PlayedItems/%s" % (api["server"] , api["userid"], id)
         if data is not None:
             # Data must be an timestamp str
             data_json = { "DatePlayed": datetime.fromtimestamp(int(data)).strftime("%Y%m%d%H%M%S") }
+        results = requests.post(url, headers=auth_header, params=data_json, verify=False )
+        if results.status_code == 200:
+            print("   * Updated Item %s (%s)" % (id,type) )
 
     elif type == "Favorite":
-        url = "http://%s/emby/Users/%s/FavoriteItems/%s" % (api["server"] , api["userid"], id)
+        url = "%s/emby/Users/%s/FavoriteItems/%s" % (api["server"] , api["userid"], id)
+        results = requests.post(url, headers=auth_header, params=data_json, verify=False )
+        if results.status_code == 200:
+            print("   * Updated Item %s (%s)" % (id,type) )
 
     elif type == "Playing":
-
-        url = "http://%s/emby/Users/%s/PlayingItems/%s" % (api["server"] , api["userid"], id)
+        url = "%s/emby/Users/%s/PlayingItems/%s" % (api["server"] , api["userid"], id)
         data_json = { "PositionTicks" : data }
-        results = requests.delete(url, headers=auth_header, params=data_json )
-        # print(results.status_code)
-        # print(results.url)
-        # print(results.text)
-        # print(results.reason)
+        results = requests.delete(url, headers=auth_header, params=data_json, verify=False )
         if results.status_code in [200,204]:
             print("   * Updated Item %s (%s)" % (id,type) )
 
-    if type != "Playing":
-        results = requests.post(url, headers=auth_header, params=data_json )
-        if results.status_code == 200:
-            print("   * Updated Item %s (%s)" % (id,type) )
+    elif type == "UnPlayed":
+        url = "%s/emby/Users/%s/PlayedItems/%s" % (api["server"] , api["userid"], id)
+        results = requests.delete(url, headers=auth_header, verify=False )
+        if results.status_code in [200,204]:
+            print("   * Unplayed Item %s (%s)" % (id,type) )
+
+    elif type == "UnFavorite":
+        url = "%s/emby/Users/%s/FavoriteItems/%s" % (api["server"] , api["userid"], id)
+        results = requests.delete(url, headers=auth_header, verify=False )
+        if results.status_code in [200,204]:
+            print("   * UnFavorite Item %s (%s)" % (id,type) )
 
 
     return(results)
@@ -211,8 +224,8 @@ def logout(api):
 
     auth_header = {'X-Emby-Authorization' : HEADER + ',Token="'+ api["token"] + '"', 'Content-Type': 'application/json' }
     data_json = {}
-    url = "http://%s/emby/Sessions/Logout" % api["server"]
-    result = requests.post(url, headers=auth_header)
+    url = "%s/emby/Sessions/Logout" % api["server"]
+    result = requests.post(url, headers=auth_header, verify=False)
 
 
     if result.status_code in (200,204) :
@@ -223,129 +236,3 @@ def logout(api):
         print(result.url)
         print(result.text)
         print(" * ERROR logout " + api["sessionid"])
-
-
-
-def plex_authentication(baseurl, token):
-    plexAccount = MyPlexAccount(token=token)
-    return(plexAccount)
-
-
-def plex_get_favorite_items(plexAccount):
-
-    results={}
-    results["Items"]=[]
-    results["Raw"] = plexAccount.watchlist(maxresults=5000)
-    for video in results["Raw"]:
-        providers = {}
-        for guid in video.guids:
-            providers[guid.id.split(":")[0].lower().capitalize()] = guid.id.split("/")[2].lower()
-        userstate = plexAccount.userState(video)
-        # print(userstate.watchlistedAt)
-        watchlistedat = datetime.timestamp(userstate.watchlistedAt) if userstate.watchlistedAt is not None else 0
-        # print(watchlistedat)
-        results["Items"].append({"Name": video.title, "Type": video.TYPE, "ProviderIds": providers, "watchlistedAt": watchlistedat})
-        # results["Items"].append({"Name": video.title, "Type": video.TYPE, "ProviderIds": providers})
-        # print(" * " + video.title + " (" + video.TYPE + ")")
-    return(results)
-
-
-
-def plex_get_watched_items(plexAccount):
-    results={}
-    results["Raw"]=[]
-    results["Items"]=[]
-    resources = plexAccount.resources()
-    for resource in resources:
-        print("   * Server: " + resource.name)
-        connectionPlexServer = resource.connect()
-        sections = connectionPlexServer.library.sections()
-        print("     * Limit: " + str(LIMIT))
-
-        for section in sections:
-            print("     * Section: " + section.title )
-            totalitems = 0
-
-            for libtype in ['movie','show','episode']:
-                startindex = 0
-                lastcount = LIMIT
-                while (lastcount == LIMIT):
-                    try:
-                        results_tmp = section.search(libtype=libtype, unwatched=False, container_start=startindex, limit=LIMIT)
-                        results["Raw"].extend(results_tmp)
-                        startindex += len(results_tmp)
-                        lastcount = len(results_tmp)
-                        print("       * Loading " + libtype + ": " + str(startindex) )
-
-                    except Exception as err:
-                        # print("Error buscando " + libtype)
-                        lastcount = 0
-                        # print(f"Unexpected {err=}, {type(err)=}")
-                        # print("   * Loading " + libtype + ": 0")
-                totalitems += startindex
-            print("     * Loading Total " + str(totalitems) )
-
-    for video in results["Raw"]:
-        providers = {}
-
-        for guid in video.guids:
-            providers[guid.id.split(":")[0].lower().capitalize()] = guid.id.split("/")[2].lower()
-
-        lastviewedat = datetime.timestamp(video.lastViewedAt) if video.lastViewedAt is not None else 0
-
-        try:
-            viewOffset = video.viewOffset
-        except:
-            viewOffset = 0
-
-        jsondata={"Name": video.title, "Type": video.TYPE, "ProviderIds": providers, "lastViewedAt": lastviewedat , "viewOffset": viewOffset }
-        # print(jsondata)
-        results["Items"].append(jsondata)
-        # print(" * " + video.title + " (" + video.TYPE + ")")
-
-    return(results)
-
-
-
-def sync_plex2emby(plex_watched,plex_favorite,embyitems, api):
-
-    print(" ** Syncing Played items from Plex to Emby")
-    for plexitem in plex_watched["Items"]:
-        embyitem = item_in_items(plexitem, embyitems)
-        if embyitem == None:
-            continue
-
-        # Get item again to bring UserData: LastPlayedDate and more.
-        embyitem = emby_get_item(api,embyitem['Id'])
-
-        if 'LastPlayedDate' in embyitem['UserData']:
-            embyplayeddate = datetime.timestamp(parser.parse(embyitem['UserData']['LastPlayedDate']))
-        else:
-            embyplayeddate = 0
-
-        # print(" * PlexPlayed: " + plexitem["Name"] + " (" + strproviders(plexitem) + ") (" + str(plexitem["lastViewedAt"]) + ">" + str(embyplayeddate) + ")" + ", Offset: "+ str(plexitem["viewOffset"]))
-        if plexitem["lastViewedAt"] > embyplayeddate:
-
-            print(" * PlexPlayed: " + plexitem["Name"] + " (" + strproviders(plexitem) + ") (" + str(plexitem["lastViewedAt"]) + ">" + str(embyplayeddate) + ")" )
-            print("   - Found: " + embyitem["Name"] + " ["+embyitem['Id']+"] " + " (" + embyitem["Id"] +") " + " (" + strproviders(embyitem) +") watched at " + str(embyplayeddate))
-
-            if plexitem["viewOffset"] == 0:
-                update_item(api, embyitem["Id"], "Played", plexitem["lastViewedAt"])
-            else:
-                update_item(api, embyitem["Id"], "Playing", int(plexitem["viewOffset"]*10000))
-
-        elif embyitem['UserData']["Played"] == False:
-            print(" * PlexPlayed: " + plexitem["Name"] + " (" + strproviders(plexitem) +") (Only played state)" )
-            print("   - Found: " + embyitem["Name"] + " ["+embyitem['Id']+"] " + " (" + strproviders(embyitem) +") ")
-            update_item(api, embyitem["Id"], "Played")
-
-
-    print(" ** Syncing Watchlist/Favorite items from Plex to Emby")
-    for plexitem in plex_favorite["Items"]:
-        # print(" * PlexPlayed: " + plexitem["Name"] + " (" + strproviders(plexitem) +")")
-        embyitem = item_in_items(plexitem, embyitems)
-        if embyitem is not None and embyitem["UserData"]["IsFavorite"] == False:
-            print(" * PlexWatchlist: " + plexitem["Name"] + " (" + strproviders(plexitem) +") WatchListed At " + str(plexitem["watchlistedAt"]))
-            print("   - Found: " + embyitem["Name"] + " (" + embyitem["Id"] +") " + " (" + strproviders(embyitem) +") at" )
-            print(embyitem["UserData"])
-            update_item(api, embyitem["Id"], "Favorite")
