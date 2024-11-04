@@ -44,7 +44,8 @@ def main(argv):
 
 
     # Authentication
-    api = authenticate_token(username=server_username, password=server_password, server=server_url, protohttps=https)
+    api = authenticate_token(username=server_username, password=server_password, server=server_url, protohttps=https, verify=False)
+
 
     print('User ID : ' + api["userid"])
     print('  Token : ' + api["token"])
